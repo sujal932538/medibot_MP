@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase"
-import { updateAppointment } from "@/lib/database"
+import { ConvexHttpClient } from "convex/browser"
+import { api } from "@/convex/_generated/api"
 
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 // GET - Fetch specific appointment by ID
 export async function GET(
@@ -11,13 +12,11 @@ export async function GET(
   try {
     const appointmentId = params.id
     
-    const { data: appointment, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('id', appointmentId)
-      .single()
+    const appointment = await convex.query(api.appointments.getAppointmentById, { 
+      id: appointmentId as any 
+    })
 
-    if (error || !appointment) {
+    if (!appointment) {
       return NextResponse.json(
         { error: "Appointment not found" },
         { status: 404 }
@@ -45,40 +44,15 @@ export async function PUT(
   try {
     const appointmentId = params.id
     const body = await request.json()
-    const { status, doctorNotes, meetingLink } = body
+    const { status, doctorNotes } = body
 
-    const updates: any = {
-      status,
-    }
-    
-    if (doctorNotes) updates.doctor_notes = doctorNotes
-    if (meetingLink) updates.meeting_link = meetingLink
+    const updatedAppointment = await convex.mutation(api.appointments.respondToAppointment, {
+      appointmentId: appointmentId as any,
+      response: status,
+      doctorNotes,
+    })
 
-    const updatedAppointment = await updateAppointment(appointmentId, updates)
-
-    // Send real-time email notification to patient
-    if (status === "approved") {
-      try {
-        const emailResponse = await fetch(`${request.nextUrl.origin}/api/notifications/email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "appointmentConfirmation",
-            appointment: updatedAppointment,
-          }),
-        })
-
-        if (emailResponse.ok) {
-          console.log("Confirmation email sent to patient successfully")
-        } else {
-          console.error("Failed to send confirmation email to patient")
-        }
-      } catch (emailError) {
-        console.error("Error sending confirmation email:", emailError)
-      }
-    }
+    console.log(`Appointment ${status} and notifications sent`)
 
     return NextResponse.json({
       success: true,

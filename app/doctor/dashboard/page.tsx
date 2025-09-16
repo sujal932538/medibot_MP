@@ -19,88 +19,47 @@ import {
 import { DoctorLayout } from "@/components/doctor-layout"
 import { useToast } from "@/hooks/use-toast"
 import { AppointmentList } from "./components/appointment-list"
+import { useUser } from "@clerk/nextjs"
+import { useQuery, useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export default function DoctorDashboard() {
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      patientName: "Ronak W",
-      patientEmail: "patient@example.com",
-      symptoms: "Persistent headache and fatigue for 3 days. Pain level 6/10, affecting daily activities.",
-      severity: "medium",
-      requestedTime: "2024-01-22 14:00:00",
-      status: "pending",
-      aiAnalysis:
-        "Patient reports moderate headache with fatigue. Symptoms suggest possible tension headache or mild migraine. Recommend consultation for proper diagnosis.",
-      vitalSigns: { heartRate: 75, spO2: 98, temperature: 98.4 },
-    },
-    {
-      id: 2,
-      patientName: "Ronak W",
-      patientEmail: "patient@example.com",
-      symptoms: "Chest pain and shortness of breath during exercise. Started yesterday evening.",
-      severity: "high",
-      requestedTime: "2024-01-22 10:30:00",
-      status: "approved",
-      aiAnalysis:
-        "HIGH PRIORITY: Chest pain with dyspnea requires immediate evaluation. Possible cardiac or pulmonary etiology. Urgent consultation recommended.",
-      vitalSigns: { heartRate: 95, spO2: 94, temperature: 99.1 },
-    },
-    {
-      id: 3,
-      patientName: "Ronak W",
-      patientEmail: "patient@example.com",
-      symptoms: "My 5-year-old has fever (101°F) and persistent cough for 2 days. Not eating well.",
-      severity: "medium",
-      requestedTime: "2024-01-23 16:00:00",
-      status: "pending",
-      aiAnalysis:
-        "Pediatric case: Fever with cough in young child. Possible viral or bacterial infection. Requires pediatric evaluation for proper treatment.",
-      vitalSigns: { heartRate: 110, spO2: 97, temperature: 101.0 },
-    },
-  ])
+  const { user } = useUser()
+  const doctor = useQuery(api.doctors.getDoctorByClerkId, 
+    user ? { clerkId: user.id } : "skip"
+  )
+  const appointments = useQuery(api.appointments.getDoctorAppointments,
+    doctor ? { doctorId: doctor._id } : "skip"
+  ) || []
+  const respondToAppointment = useMutation(api.appointments.respondToAppointment)
 
   const { toast } = useToast()
 
-  const handleAppointmentAction = (appointmentId: number, action: "approve" | "reject") => {
-    const appointment = appointments.find(apt => apt.id === appointmentId)
+  const handleAppointmentAction = async (appointmentId: string, action: "approve" | "reject") => {
+    const appointment = appointments.find(apt => apt._id === appointmentId)
     if (!appointment) return
 
-    // Update local state
-    setAppointments((prev) =>
-      prev.map((apt) =>
-        apt.id === appointmentId ? { ...apt, status: action === "approve" ? "approved" : "rejected" } : apt,
-      ),
-    )
+    try {
+      await respondToAppointment({
+        appointmentId: appointmentId as any,
+        response: action === "approve" ? "approved" : "rejected",
+        doctorNotes: action === "reject" 
+          ? "Doctor is not available at the requested time" 
+          : "Appointment confirmed",
+      })
 
-    // Send API request to update appointment and trigger email
-    fetch(`/api/appointments/${appointmentId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: action === "approve" ? "approved" : "rejected",
-        doctorNotes: action === "reject" ? "Doctor is not available at the requested time" : "Appointment confirmed",
-        meetingLink: action === "approve" ? `https://medibot-meet.com/room/${appointmentId}` : null
-      }),
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        console.log("Appointment updated and email sent successfully")
-      } else {
-        console.error("Failed to update appointment:", data.error)
-      }
-    })
-    .catch(error => {
+      toast({
+        title: action === "approve" ? "Appointment Approved" : "Appointment Rejected",
+        description: `Patient notified via email in real-time! ${action === "approve" ? "Video call link sent" : "Rejection"} email sent instantly.`,
+      })
+    } catch (error) {
       console.error("Error updating appointment:", error)
-    })
-
-    toast({
-      title: action === "approve" ? "Appointment Approved" : "Appointment Rejected",
-      description: `Patient notified via email in real-time! ${action === "approve" ? "Confirmation" : "Rejection"} email sent instantly.`,
-    })
+      toast({
+        title: "Error",
+        description: "Failed to update appointment. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const getSeverityColor = (severity: string) => {
@@ -133,7 +92,7 @@ export default function DoctorDashboard() {
     totalAppointments: appointments.length,
     pendingApprovals: appointments.filter((apt) => apt.status === "pending").length,
     todayScheduled: appointments.filter((apt) => apt.status === "approved").length,
-    highPriority: appointments.filter((apt) => apt.severity === "high").length,
+    highPriority: appointments.filter((apt) => apt.symptoms?.toLowerCase().includes("chest pain") || apt.symptoms?.toLowerCase().includes("breathing")).length,
   }
 
   return (

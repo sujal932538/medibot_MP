@@ -17,13 +17,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('create user body', body)
     const {
-      name,
+      firstName,
+      lastName,
+      phone,
       email,
       role
     } = body;
 
     // Validate required fields
-    if (!name || !email || !role) {
+    if (!email || !role) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -41,10 +43,12 @@ export async function POST(request: NextRequest) {
 
     // Create user profile in Convex
     const createdId = await convex.mutation(api.users.createUser, {
+      clerkId: session.user.id,
       email,
-      name,
+      firstName,
+      lastName,
+      phone,
       role,
-      password: ''
     });
 
     return NextResponse.json({

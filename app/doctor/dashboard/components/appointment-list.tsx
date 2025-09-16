@@ -3,21 +3,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type AppointmentListProps = {
   appointments: {
-    id: number
+    _id: string
     patientName: string
     patientEmail: string
+    reason: string
     symptoms: string
-    severity: string
-    requestedTime: string
+    appointmentDate: string
+    appointmentTime: string
     status: string
-    aiAnalysis: string
-    vitalSigns: {
-      heartRate: number
-      spO2: number
-      temperature: number
-    }
+    consultationFee: number
+    meetingLink?: string
   }[]
-  onStatusChange: (id: number, status: 'approved' | 'rejected') => void
+  onStatusChange: (id: string, status: 'approved' | 'rejected') => void
 }
 
 export function AppointmentList({ appointments, onStatusChange }: AppointmentListProps) {
@@ -37,7 +34,7 @@ export function AppointmentList({ appointments, onStatusChange }: AppointmentLis
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {pendingAppointments.map(appointment => (
             <AppointmentCard 
-              key={appointment.id} 
+              key={appointment._id} 
               appointment={appointment} 
               onStatusChange={onStatusChange} 
             />
@@ -49,7 +46,7 @@ export function AppointmentList({ appointments, onStatusChange }: AppointmentLis
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {approvedAppointments.map(appointment => (
             <AppointmentCard 
-              key={appointment.id} 
+              key={appointment._id} 
               appointment={appointment} 
               onStatusChange={onStatusChange} 
             />
@@ -61,7 +58,7 @@ export function AppointmentList({ appointments, onStatusChange }: AppointmentLis
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {rejectedAppointments.map(appointment => (
             <AppointmentCard 
-              key={appointment.id} 
+              key={appointment._id} 
               appointment={appointment} 
               onStatusChange={onStatusChange} 
             />

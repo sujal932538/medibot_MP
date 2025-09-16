@@ -57,9 +57,10 @@ export default defineSchema({
     patientName: v.string(),
     patientEmail: v.string(),
     patientPhone: v.optional(v.string()),
-    doctorId: v.optional(v.string()),
+    doctorId: v.optional(v.id("doctors")),
     doctorName: v.optional(v.string()),
     doctorEmail: v.optional(v.string()),
+    specialty: v.optional(v.string()),
     appointmentDate: v.string(),
     appointmentTime: v.string(),
     reason: v.string(),
@@ -78,7 +79,6 @@ export default defineSchema({
   })
     .index("by_patient", ["patientId"])
     .index("by_doctor", ["doctorId"])
-    .index("by_status", ["status"]),
 
   vitals: defineTable({
     patientId: v.string(),

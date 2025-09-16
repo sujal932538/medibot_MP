@@ -84,8 +84,6 @@ export default function AppointmentsPage() {
   }, [])
 
   const handleBookAppointment = async (formData: FormData) => {
-    if (!selectedDoctor) return
-
     try {
       setIsBooking(true)
 
@@ -94,14 +92,15 @@ export default function AppointmentsPage() {
         patientName: formData.get("patientName") as string,
         patientEmail: user?.primaryEmailAddress?.emailAddress || "demo@example.com",
         patientPhone: formData.get("patientPhone") as string,
-        doctorId: selectedDoctor._id,
-        doctorName: selectedDoctor.name,
-        doctorEmail: selectedDoctor.email,
+        doctorId: selectedDoctor?._id,
+        doctorName: selectedDoctor?.name,
+        doctorEmail: selectedDoctor?.email,
+        specialty: formData.get("specialty") as string || selectedDoctor?.specialty,
         appointmentDate: formData.get("appointmentDate") as string,
         appointmentTime: formData.get("appointmentTime") as string,
         reason: formData.get("reason") as string,
         symptoms: formData.get("symptoms") as string,
-        consultationFee: selectedDoctor.consultationFee,
+        consultationFee: selectedDoctor?.consultationFee || 150,
       }
 
       console.log("Booking appointment with data:", appointmentData)
@@ -111,7 +110,9 @@ export default function AppointmentsPage() {
       if (appointmentId) {
         toast({
           title: "Appointment Booked! 🎉",
-          description: `Your appointment with ${selectedDoctor.name} has been booked successfully!`,
+          description: selectedDoctor 
+            ? `Your appointment with ${selectedDoctor.name} has been booked successfully!`
+            : "Your appointment has been booked and assigned to an available doctor!",
         })
 
         setIsAppointmentFormOpen(false)
@@ -137,6 +138,11 @@ export default function AppointmentsPage() {
     setIsAppointmentFormOpen(true)
   }
 
+  const handleQuickBooking = () => {
+    setSelectedDoctor(null)
+    setIsDoctorListOpen(false)
+    setIsAppointmentFormOpen(true)
+  }
   const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase())
@@ -309,8 +315,27 @@ export default function AppointmentsPage() {
                 <div className="text-center py-8">
                   <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500">No doctors found matching your criteria</p>
+                  <Button 
+                    onClick={handleQuickBooking}
+                    className="mt-4"
+                    variant="outline"
+                  >
+                    Book with Any Available Doctor
+                  </Button>
                 </div>
               )}
+              
+              {/* Quick booking option */}
+              <div className="border-t pt-4">
+                <Button 
+                  onClick={handleQuickBooking}
+                  className="w-full"
+                  variant="outline"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Book with Any Available Doctor
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
 
@@ -393,6 +418,24 @@ export default function AppointmentsPage() {
                         />
                       </div>
                     </div>
+                    {!selectedDoctor && (
+                      <div className="space-y-2">
+                        <Label htmlFor="specialty">Preferred Specialty (Optional)</Label>
+                        <Select name="specialty">
+                          <SelectTrigger>
+                            <SelectValue placeholder="Any specialty" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Any Specialty</SelectItem>
+                            <SelectItem value="general">General Medicine</SelectItem>
+                            <SelectItem value="cardiology">Cardiology</SelectItem>
+                            <SelectItem value="pediatrics">Pediatrics</SelectItem>
+                            <SelectItem value="dermatology">Dermatology</SelectItem>
+                            <SelectItem value="psychiatry">Psychiatry</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="appointmentDate">Date</Label>
@@ -422,14 +465,18 @@ export default function AppointmentsPage() {
                         rows={2}
                       />
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Consultation Fee:</span>
-                        <span className="text-lg font-bold text-green-600">${selectedDoctor.consultationFee}</span>
+                    {selectedDoctor && (
+                      <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">Consultation Fee:</span>
+                          <span className="text-lg font-bold text-green-600">${selectedDoctor.consultationFee}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <Button type="submit" className="w-full" disabled={isBooking}>
-                      {isBooking ? "Booking..." : `Book Appointment - $${selectedDoctor.consultationFee}`}
+                      {isBooking ? "Booking..." : selectedDoctor 
+                        ? `Book Appointment - $${selectedDoctor.consultationFee}`
+                        : "Book Appointment"}
                     </Button>
                   </form>
                 </>

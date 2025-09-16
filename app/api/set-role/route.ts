@@ -21,10 +21,11 @@ export async function POST(req: Request) {
     }
 
     await convex.mutation(api.users.createUser, {
+      clerkId: session.user.id,
       email: session.user.email,
-      name: session.user.name || '',
+      firstName: session.user.name?.split(' ')[0] || '',
+      lastName: session.user.name?.split(' ').slice(1).join(' ') || '',
       role,
-      password: ''
     })
 
     return NextResponse.json({ success: true })

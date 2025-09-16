@@ -8,6 +8,8 @@ import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Settings } from "lu
 import { useParams } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import { useToast } from "@/hooks/use-toast"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export default function VideoCallPage() {
   const params = useParams()
@@ -20,10 +22,16 @@ export default function VideoCallPage() {
   const [sessionData, setSessionData] = useState<any>(null)
 
   const appointmentId = params.appointmentId as string
+  
+  const appointment = useQuery(api.appointments.getAppointmentById, {
+    id: appointmentId as any
+  })
 
   useEffect(() => {
-    initializeVideoCall()
-  }, [appointmentId])
+    if (appointment) {
+      initializeVideoCall()
+    }
+  }, [appointmentId, appointment])
 
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -37,6 +45,14 @@ export default function VideoCallPage() {
 
   const initializeVideoCall = async () => {
     try {
+      if (!appointment) {
+        throw new Error("Appointment not found")
+      }
+      
+      if (appointment.status !== "approved") {
+        throw new Error("Appointment not approved yet")
+      }
+      
       const response = await fetch("/api/vonage/session", {
         method: "POST",
         headers: {
@@ -61,7 +77,7 @@ export default function VideoCallPage() {
       console.error("Error initializing video call:", error)
       toast({
         title: "Connection Error",
-        description: "Failed to connect to video session",
+        description: error instanceof Error ? error.message : "Failed to connect to video session",
         variant: "destructive",
       })
     }
@@ -83,6 +99,28 @@ export default function VideoCallPage() {
     window.close()
   }
 
+  if (!appointment) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading appointment...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  if (appointment.status !== "approved") {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h1 className="text-2xl font-bold mb-4">Appointment Not Available</h1>
+          <p className="mb-4">This appointment is not approved for video consultation.</p>
+          <p className="text-sm text-gray-400">Status: {appointment.status}</p>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header */}
@@ -99,7 +137,9 @@ export default function VideoCallPage() {
         </div>
         <div className="text-white">
           <h1 className="text-lg font-semibold">MEDIBOT Video Consultation</h1>
-          <p className="text-sm text-gray-300">Appointment #{appointmentId}</p>
+          <p className="text-sm text-gray-300">
+            {appointment.patientName} with {appointment.doctorName}
+          </p>
         </div>
       </div>
 

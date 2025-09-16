@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createAppointment } from "@/lib/database"
+import { ConvexHttpClient } from "convex/browser"
+import { api } from "@/convex/_generated/api"
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!)
 
 // Helper function to validate appointment data
 function validateAppointmentData(data: any) {
@@ -62,49 +65,24 @@ export async function POST(request: NextRequest) {
       doctor_id: body.doctorId,
       doctor_name: body.doctorName,
       doctor_email: body.doctorEmail,
+      specialty: body.specialty,
       appointment_date: body.appointmentDate,
       appointment_time: body.appointmentTime,
       reason: body.reason.trim(),
       symptoms: body.symptoms?.trim() || "",
-      status: "pending" as const,
       consultation_fee: body.consultationFee || 0,
     }
 
     // Save to database
-    const newAppointment = await createAppointment(appointmentData)
+    const appointmentId = await convex.mutation(api.appointments.createAppointment, appointmentData)
 
-    console.log("Appointment created successfully:", newAppointment.id)
-
-    // Send email notification to doctor
-    try {
-      console.log("Sending real-time email notification to doctor...")
-      const emailResponse = await fetch(`${request.nextUrl.origin}/api/notifications/email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "appointmentRequest",
-          appointment: newAppointment,
-        }),
-      })
-
-      const emailResult = await emailResponse.json()
-      
-      if (emailResponse.ok && emailResult.success) {
-        console.log("✅ Real-time email sent successfully to doctor:", emailResult.messageId)
-      } else {
-        console.error("❌ Failed to send email notification:", emailResult.error)
-      }
-    } catch (emailError) {
-      console.error("Error sending email notification:", emailError)
-    }
+    console.log("Appointment created successfully:", appointmentId)
 
     return NextResponse.json(
       {
         success: true,
-        message: "Appointment booked successfully! Doctor notified via email in real-time.",
-        appointment: newAppointment,
+        message: "Appointment booked successfully! Available doctor assigned and notified via email.",
+        appointmentId,
       },
       { status: 201 },
     )

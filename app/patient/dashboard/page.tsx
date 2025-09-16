@@ -21,12 +21,19 @@ import {
 import Link from "next/link"
 import { PatientLayout } from "@/components/patient-layout"
 import { ApiTestButton } from "@/components/api-test-button"
+import { SeedDoctorsButton } from "@/components/seed-doctors-button"
 import { useUser } from "@clerk/nextjs"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 export default function PatientDashboard() {
   const { user } = useUser()
+  
+  // Get user's recent appointments
+  const recentAppointments = useQuery(api.appointments.getAppointments,
+    user ? { patientId: user.id, limit: 3 } : "skip"
+  ) || []
+  
   const [vitals, setVitals] = useState({
     heartRate: 72,
     spO2: 98,
@@ -182,6 +189,14 @@ export default function PatientDashboard() {
               </div>
             </CardContent>
           </Card>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardContent className="p-6 text-center">
+              <div className="space-y-2">
+                <h3 className="font-semibold">Setup Doctors</h3>
+                <SeedDoctorsButton />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Live Vitals Monitoring */}
@@ -294,25 +309,44 @@ export default function PatientDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <div>
-                    <p className="font-medium">Dr. Sarah Johnson</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">General Consultation</p>
-                    <p className="text-xs text-gray-500">Tomorrow, 2:00 PM</p>
+                {recentAppointments.length > 0 ? (
+                  recentAppointments.map((appointment) => (
+                    <div key={appointment._id} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div>
+                        <p className="font-medium">{appointment.doctorName || "Doctor Assigned"}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{appointment.reason}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(appointment.appointmentDate).toLocaleDateString()} at {appointment.appointmentTime}
+                        </p>
+                        <Badge 
+                          variant={appointment.status === "approved" ? "default" : 
+                                  appointment.status === "pending" ? "secondary" : "destructive"}
+                          className="mt-1"
+                        >
+                          {appointment.status}
+                        </Badge>
+                      </div>
+                      {appointment.status === "approved" && appointment.meetingLink && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => window.open(appointment.meetingLink, '_blank')}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Join Call
+                        </Button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500">No appointments scheduled</p>
+                    <Link href="/patient/appointments">
+                      <Button variant="outline" size="sm" className="mt-2 bg-transparent">
+                        Book Appointment
+                      </Button>
+                    </Link>
                   </div>
-                  <Button size="sm" variant="outline">
-                    <MessageSquare className="h-4 w-4 mr-1" />
-                    Join
-                  </Button>
-                </div>
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">No other appointments scheduled</p>
-                  <Link href="/patient/appointments">
-                    <Button variant="outline" size="sm" className="mt-2 bg-transparent">
-                      Book Appointment
-                    </Button>
-                  </Link>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

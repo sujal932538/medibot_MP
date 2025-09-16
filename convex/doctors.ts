@@ -1,6 +1,81 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Seed initial doctors if none exist
+export const seedDoctors = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const existingDoctors = await ctx.db.query("doctors").collect();
+    if (existingDoctors.length > 0) {
+      return { message: "Doctors already exist", count: existingDoctors.length };
+    }
+    
+    const sampleDoctors = [
+      {
+        clerkId: "doctor_001",
+        name: "Dr. Sarah Johnson",
+        specialty: "General Medicine",
+        email: "sarah.johnson@medibot.com",
+        phone: "+1 (555) 123-4567",
+        licenseNumber: "MD123456",
+        experience: "8 years",
+        education: "MD from Harvard Medical School",
+        about: "Dr. Sarah Johnson is a dedicated general practitioner with over 8 years of experience in primary care.",
+        languages: ["English", "Spanish"],
+        availability: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        consultationFee: 150,
+        rating: 4.8,
+        totalReviews: 245,
+        image: "/placeholder-user.jpg",
+        status: "active" as const,
+      },
+      {
+        clerkId: "doctor_002",
+        name: "Dr. Michael Chen",
+        specialty: "Cardiology",
+        email: "michael.chen@medibot.com",
+        phone: "+1 (555) 234-5678",
+        licenseNumber: "MD234567",
+        experience: "12 years",
+        education: "MD from Johns Hopkins University",
+        about: "Dr. Michael Chen is a board-certified cardiologist with extensive experience in treating heart conditions.",
+        languages: ["English", "Mandarin"],
+        availability: ["Monday", "Wednesday", "Friday"],
+        consultationFee: 250,
+        rating: 4.9,
+        totalReviews: 189,
+        image: "/placeholder-user.jpg",
+        status: "active" as const,
+      },
+      {
+        clerkId: "doctor_003",
+        name: "Dr. Emily Rodriguez",
+        specialty: "Pediatrics",
+        email: "emily.rodriguez@medibot.com",
+        phone: "+1 (555) 345-6789",
+        licenseNumber: "MD345678",
+        experience: "10 years",
+        education: "MD from Stanford University",
+        about: "Dr. Emily Rodriguez is a compassionate pediatrician who has been caring for children and adolescents for over 10 years.",
+        languages: ["English", "Spanish"],
+        availability: ["Tuesday", "Thursday", "Saturday"],
+        consultationFee: 180,
+        rating: 4.7,
+        totalReviews: 156,
+        image: "/placeholder-user.jpg",
+        status: "active" as const,
+      },
+    ];
+    
+    const createdDoctors = [];
+    for (const doctor of sampleDoctors) {
+      const doctorId = await ctx.db.insert("doctors", doctor);
+      createdDoctors.push(doctorId);
+    }
+    
+    return { message: "Sample doctors created", count: createdDoctors.length };
+  },
+});
 export const createDoctor = mutation({
   args: {
     clerkId: v.string(),

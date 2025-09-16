@@ -7,76 +7,23 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, UserCheck, Calendar, Pill, Plus, Edit, Trash2, Mail, Phone } from "lucide-react"
 import { AdminLayout } from "@/components/admin-layout"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export default function AdminDashboard() {
-  const [doctors] = useState([
-    {
-      id: 1,
-      name: "Dr. Sarah Johnson",
-      specialty: "General Medicine",
-      email: "sarah.johnson@medibot.com",
-      phone: "+1 (555) 123-4567",
-      status: "active",
-      patients: 45,
-      appointments: 12,
-    },
-    {
-      id: 2,
-      name: "Dr. Michael Chen",
-      specialty: "Cardiology",
-      email: "michael.chen@medibot.com",
-      phone: "+1 (555) 234-5678",
-      status: "active",
-      patients: 38,
-      appointments: 8,
-    },
-    {
-      id: 3,
-      name: "Dr. Emily Rodriguez",
-      specialty: "Pediatrics",
-      email: "emily.rodriguez@medibot.com",
-      phone: "+1 (555) 345-6789",
-      status: "offline",
-      patients: 52,
-      appointments: 15,
-    },
-  ])
+  const doctors = useQuery(api.doctors.getAllDoctors, {}) || []
+  const appointments = useQuery(api.appointments.getAllAppointments, {}) || []
+  const pharmacies = useQuery(api.pharmacies.getAllPharmacies, {}) || []
 
-  const [pharmacies] = useState([
-    {
-      id: 1,
-      name: "MediCare Pharmacy",
-      address: "123 Health St, Medical District",
-      phone: "+1 (555) 111-2222",
-      email: "orders@medicare-pharmacy.com",
-      deliveryTime: "30-45 mins",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "QuickMeds Express",
-      address: "456 Wellness Ave, Downtown",
-      phone: "+1 (555) 333-4444",
-      email: "support@quickmeds.com",
-      deliveryTime: "20-30 mins",
-      status: "active",
-    },
-    {
-      id: 3,
-      name: "HealthPlus Drugstore",
-      address: "789 Care Blvd, Suburb",
-      phone: "+1 (555) 555-6666",
-      email: "info@healthplus.com",
-      deliveryTime: "45-60 mins",
-      status: "inactive",
-    },
-  ])
 
   const stats = {
-    totalPatients: 1247,
-    activeDoctors: 12,
-    todayAppointments: 35,
-    activePharmacies: 8,
+    totalPatients: 1247, // This would come from a users query in production
+    activeDoctors: doctors.filter(d => d.status === "active").length,
+    todayAppointments: appointments.filter(apt => {
+      const today = new Date().toISOString().split('T')[0]
+      return apt.appointmentDate === today
+    }).length,
+    activePharmacies: pharmacies.filter(p => p.status === "active").length,
   }
 
   return (
@@ -170,7 +117,7 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {doctors.map((doctor) => (
-                    <div key={doctor.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={doctor._id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                           <UserCheck className="h-6 w-6 text-blue-600" />
@@ -183,19 +130,23 @@ export default function AdminDashboard() {
                               <Mail className="h-3 w-3 text-gray-400" />
                               <span className="text-xs text-gray-500">{doctor.email}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-500">{doctor.phone}</span>
-                            </div>
+                            {doctor.phone && (
+                              <div className="flex items-center space-x-1">
+                                <Phone className="h-3 w-3 text-gray-400" />
+                                <span className="text-xs text-gray-500">{doctor.phone}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <p className="text-sm font-medium">{doctor.patients} patients</p>
-                          <p className="text-xs text-gray-500">{doctor.appointments} appointments today</p>
+                          <p className="text-sm font-medium">${doctor.consultationFee} fee</p>
+                          <p className="text-xs text-gray-500">⭐ {doctor.rating} rating</p>
                         </div>
-                        <Badge variant={doctor.status === "active" ? "default" : "secondary"}>{doctor.status}</Badge>
+                        <Badge variant={doctor.status === "active" ? "default" : "secondary"}>
+                          {doctor.status}
+                        </Badge>
                         <div className="flex space-x-2">
                           <Button size="sm" variant="outline">
                             <Edit className="h-3 w-3" />
@@ -229,7 +180,7 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {pharmacies.map((pharmacy) => (
-                    <div key={pharmacy.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={pharmacy._id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
                           <Pill className="h-6 w-6 text-green-600" />
@@ -238,20 +189,24 @@ export default function AdminDashboard() {
                           <h3 className="font-semibold text-gray-900 dark:text-white">{pharmacy.name}</h3>
                           <p className="text-sm text-gray-600 dark:text-gray-300">{pharmacy.address}</p>
                           <div className="flex items-center space-x-4 mt-1">
-                            <div className="flex items-center space-x-1">
-                              <Mail className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-500">{pharmacy.email}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Phone className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-500">{pharmacy.phone}</span>
-                            </div>
+                            {pharmacy.email && (
+                              <div className="flex items-center space-x-1">
+                                <Mail className="h-3 w-3 text-gray-400" />
+                                <span className="text-xs text-gray-500">{pharmacy.email}</span>
+                              </div>
+                            )}
+                            {pharmacy.phone && (
+                              <div className="flex items-center space-x-1">
+                                <Phone className="h-3 w-3 text-gray-400" />
+                                <span className="text-xs text-gray-500">{pharmacy.phone}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <p className="text-sm font-medium">Delivery: {pharmacy.deliveryTime}</p>
+                          <p className="text-sm font-medium">Delivery: {pharmacy.deliveryTime || "N/A"}</p>
                         </div>
                         <Badge variant={pharmacy.status === "active" ? "default" : "secondary"}>
                           {pharmacy.status}
